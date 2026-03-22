@@ -25,14 +25,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const PORT = process.env.PORT;
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "https://e-learning-client-full.vercel.app",
-      "https://e-learning-client-full.vercel.app",
-    ],
+    origin: ["http://localhost:5173", "https://teacher-olive-zeta.vercel.app"],
     credentials: true,
-  })
+  }),
 );
 
 app.use("/users", userRoute);
