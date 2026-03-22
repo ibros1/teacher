@@ -45,21 +45,25 @@ import { Plus, Trash2 } from "lucide-react";
 // ✅ Schema like CreateLessonDialog
 const formSchema = z.object({
   courseId: z.string().min(1, "Course is required"),
-  chapters: z.array(
-    z.object({
-      chapterTitle: z.string().min(3, "Chapter name must be at least 3 characters"),
-    })
-  ).min(1, "At least one chapter is required"),
+  chapters: z
+    .array(
+      z.object({
+        chapterTitle: z
+          .string()
+          .min(3, "Chapter name must be at least 3 characters"),
+      }),
+    )
+    .min(1, "At least one chapter is required"),
 });
 
 const CreateChapters = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   const listCoursesState = useSelector(
-    (state: RootState) => state.listCoursesSlice
+    (state: RootState) => state.listCoursesSlice,
   );
   const createChapterState = useSelector(
-    (state: RootState) => state.createChapterSlice
+    (state: RootState) => state.createChapterSlice,
   );
   const loginState = useSelector((state: RootState) => state.loginSlice);
 
@@ -89,14 +93,14 @@ const CreateChapters = () => {
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const chapterTitles = values.chapters.map((c) => c.chapterTitle);
-    
+
     if (chapterTitles.length === 1) {
       dispatch(
         createChapterFn({
           userId,
           courseId: Number(values.courseId),
           chapterTitle: chapterTitles[0],
-        })
+        }),
       );
     } else {
       dispatch(
@@ -104,7 +108,7 @@ const CreateChapters = () => {
           userId,
           courseId: Number(values.courseId),
           chapters: chapterTitles,
-        })
+        }),
       );
     }
   };
@@ -116,7 +120,9 @@ const CreateChapters = () => {
     }
 
     if (createChapterState.data?.isSuccess) {
-      toast.success(createChapterState.data?.message || "Successfully created!");
+      toast.success(
+        createChapterState.data?.message || "Successfully created!",
+      );
       dispatch(resetChapterState());
       setIsCreateChapterDialogOpen(false);
       form.reset({

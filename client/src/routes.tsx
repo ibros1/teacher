@@ -11,7 +11,7 @@ import AdminDashboard from "./admin/layouts/adminDashboard";
 import MainDashboard from "./admin/layouts/main";
 import NotFound from "./pages/notFound";
 import AdminCourses from "./admin/pages/courses";
-import Lessons from "./admin/pages/lessons";
+
 import Chapters from "./admin/pages/chapters";
 import CoursesPage from "./pages/courses/AllCourses";
 import CourseDetailPage from "./pages/courses/CourseDetail";
@@ -32,6 +32,7 @@ import Logout from "./pages/logout";
 import MyCertificates from "./pages/myCertificates";
 import Reports from "./admin/pages/reports";
 import CheckoutPage from "./pages/courses/checkOut";
+import { Lessons } from "./admin/pages/lessons";
 export const mainRoter = createBrowserRouter([
   {
     path: "/",

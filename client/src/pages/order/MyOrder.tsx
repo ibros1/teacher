@@ -59,7 +59,7 @@ const getStatusBadge = (status: string) => {
 const MyOrder = () => {
   const dispatch = useDispatch<AppDispatch>();
   const listEnrollementsState = useSelector(
-    (state: RootState) => state.listEnrollementsSlice
+    (state: RootState) => state.listEnrollementsSlice,
   );
   const loginState = useSelector((state: RootState) => state.loginSlice);
   const userId = loginState.data?.user?.id;
@@ -68,7 +68,13 @@ const MyOrder = () => {
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   useEffect(() => {
-    dispatch(listEnrollementsFn());
+    dispatch(
+      listEnrollementsFn({
+        page: 1,
+        limit: 1000,
+        perPage: 1000,
+      }),
+    );
   }, [dispatch]);
 
   const orders = listEnrollementsState.data?.enrollemnets || [];
@@ -160,7 +166,7 @@ const MyOrder = () => {
                             created_at:
                               typeof order.created_at === "string"
                                 ? order.created_at
-                                : order.created_at?.toISOString?.() ?? "",
+                                : (order.created_at?.toISOString?.() ?? ""),
                           });
                           setPopoverOpen(false);
                         }}

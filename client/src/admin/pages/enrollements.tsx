@@ -1,29 +1,29 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import type { AppDispatch, RootState } from "../../store/store";
-import { listEnrollementsFn } from "../../store/slices/enrollments/listEnrollements";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { listEnrollementsFn } from "../../store/slices/enrollments/listEnrollements";
+import type { AppDispatch, RootState } from "../../store/store";
 
 import {
-  BookOpenCheck,
-  CheckCircle,
-  XCircle,
-  Mail,
   BadgeDollarSign,
+  BookOpenCheck,
   CalendarClock,
+  CheckCircle,
+  Mail,
+  XCircle,
 } from "lucide-react";
 
-import EditEnrolls from "../components/enrolls/EditEnrolls";
-import DeleteEnrolls from "../components/enrolls/deleteEnrolls";
 import LessonsSkeleton from "../../components/ui/LessonsSkeleton";
-import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import type { Enrollemnet } from "../../types/enrollement";
+import AdminDataTable from "../components/AdminDataTable";
 import AdminPageHeader from "../components/AdminPageHeader";
+import AdminPagination from "../components/AdminPagination";
 import AdminStatsCards from "../components/AdminStatsCards";
 import AdminTableShell from "../components/AdminTableShell";
-import AdminPagination from "../components/AdminPagination";
-import AdminDataTable from "../components/AdminDataTable";
-import type { Enrollemnet } from "../../types/enrollement";
+import EditEnrolls from "../components/enrolls/EditEnrolls";
+import DeleteEnrolls from "../components/enrolls/deleteEnrolls";
 
 // ---------------- Types ----------------
 type StatusType = "ALL" | "COMPLETED" | "IN_PROGRESS" | "FAILED";
@@ -40,7 +40,7 @@ const statusOptions: { label: string; value: StatusType }[] = [
 const Enrollments = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { data, loading } = useSelector(
-    (state: RootState) => state.listEnrollementsSlice
+    (state: RootState) => state.listEnrollementsSlice,
   );
   const enrollments = data?.enrollemnets || [];
 
@@ -163,7 +163,8 @@ const Enrollments = () => {
       accessorFn: (row) => row.course?.price,
       cell: ({ row }) => (
         <span className="text-green-600 dark:text-green-400">
-          <BadgeDollarSign className="w-4 h-4 inline" /> ${row.original.course?.price}
+          <BadgeDollarSign className="w-4 h-4 inline" /> $
+          {row.original.course?.price}
         </span>
       ),
     },
@@ -175,7 +176,9 @@ const Enrollments = () => {
     {
       accessorKey: "is_enrolled",
       header: "Enrolled",
-      cell: (info) => <span>{String(info.getValue() as boolean).toUpperCase()}</span>,
+      cell: (info) => (
+        <span>{String(info.getValue() as boolean).toUpperCase()}</span>
+      ),
     },
     {
       accessorKey: "status",
@@ -188,8 +191,8 @@ const Enrollments = () => {
               status === "COMPLETED"
                 ? "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-300"
                 : status === "IN_PROGRESS"
-                ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-800 dark:text-yellow-300"
-                : "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300"
+                  ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-800 dark:text-yellow-300"
+                  : "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300"
             }`}
           >
             {status}

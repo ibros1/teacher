@@ -1,46 +1,33 @@
 import {
   faBook,
+  faBookOpen,
   faCircleCheck,
   faCircleXmark,
-  faBookOpen,
   type IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  Eye,
-  Pencil,
-  Search,
-  Trash2,
-  Clock,
-  Calendar,
-  Star,
-} from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import { Calendar, Clock, Eye, Pencil, Star, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import CreateLessonDailog from "../components/lessons/createLessonDailog";
-import CreateBulkLessonDialog from "../components/lessons/createBulkLessonDialog";
 import { Button } from "../../components/ui/button";
-import { type AppDispatch, type RootState } from "../../store/store";
-import { listLessonsFn } from "../../store/slices/lessons/listLessons";
 import { listChaptersFn } from "../../store/slices/chapters/listChapters";
 import { listCoursesFn } from "../../store/slices/courses/listCourse";
-import {
-  resetUpdateLessonState,
-  updateLessonFn,
-} from "../../store/slices/lessons/updateLesson";
 import {
   deleteLessonFn,
   resetDeleteLessonState,
 } from "../../store/slices/lessons/deleteLesson";
-
+import { listLessonsFn } from "../../store/slices/lessons/listLessons";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogTitle,
-} from "../../components/ui/dialog";
+  resetUpdateLessonState,
+  updateLessonFn,
+} from "../../store/slices/lessons/updateLesson";
+import { type AppDispatch, type RootState } from "../../store/store";
+import CreateBulkLessonDialog from "../components/lessons/createBulkLessonDialog";
+import CreateLessonDailog from "../components/lessons/createLessonDailog";
+
+import { toast } from "sonner";
+import Spinner from "../../components/spinner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,53 +38,58 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
-import { Label } from "../../components/ui/label";
-import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
-import LessonsSkeleton from "../../components/ui/LessonsSkeleton";
-import Spinner from "../../components/spinner";
-import { toast } from "sonner";
-import type { Lesson } from "../../types/lesson";
 import { Badge } from "../../components/ui/badge";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogTitle,
+} from "../../components/ui/dialog";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import LessonsSkeleton from "../../components/ui/LessonsSkeleton";
+import { Textarea } from "../../components/ui/textarea";
+import type { Lesson } from "../../types/lesson";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import type { SourceInfo } from "plyr";
 import Plyr from "plyr-react";
 import { BASE_API_URL } from "../../constants/base_url";
-import type { ColumnDef } from "@tanstack/react-table";
+import AdminDataTable from "../components/AdminDataTable";
 import AdminPageHeader from "../components/AdminPageHeader";
+import AdminPagination from "../components/AdminPagination";
 import AdminStatsCards from "../components/AdminStatsCards";
 import AdminTableShell from "../components/AdminTableShell";
-import AdminPagination from "../components/AdminPagination";
-import AdminDataTable from "../components/AdminDataTable";
 
-const Lessons = () => {
+export const Lessons = () => {
   const dispatch = useDispatch<AppDispatch>();
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const perPage = 10;
 
   const listLessonState = useSelector(
-    (state: RootState) => state.listLessonSlice
+    (state: RootState) => state.listLessonSlice,
   );
   const totalPages = listLessonState.data?.totalPages || 1;
 
   const coursesState = useSelector(
-    (state: RootState) => state.listCoursesSlice
+    (state: RootState) => state.listCoursesSlice,
   );
   const courses = coursesState.data?.courses;
 
   const chaptersState = useSelector(
-    (state: RootState) => state.listChaptersSlice
+    (state: RootState) => state.listChaptersSlice,
   );
   const chapters = chaptersState.data?.chapters;
 
   const logInState = useSelector((state: RootState) => state.loginSlice);
 
   const updateState = useSelector(
-    (state: RootState) => state.updateLessonSlice
+    (state: RootState) => state.updateLessonSlice,
   );
   const deleteState = useSelector(
-    (state: RootState) => state.deleteLessonSlice
+    (state: RootState) => state.deleteLessonSlice,
   );
 
   useEffect(() => {
@@ -116,12 +108,12 @@ const Lessons = () => {
         lesson.chapters.chapterTitle
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        lesson.courseId.toString().includes(searchTerm)
+        lesson.courseId.toString().includes(searchTerm),
     )
     .slice()
     .sort(
       (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
 
   const stats = {
@@ -152,7 +144,7 @@ const Lessons = () => {
         title,
         content,
         video_url: videoUrl,
-      })
+      }),
     );
   };
 
@@ -702,7 +694,7 @@ interface StatCardProps {
   color: string;
 }
 
-const StatCard = ({ icon, value, label, bg, color }: StatCardProps) => (
+export const StatCard = ({ icon, value, label, bg, color }: StatCardProps) => (
   <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 flex items-center gap-4 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 ease-in-out">
     <div className={`${bg} ${color} p-3 rounded-full`}>
       <FontAwesomeIcon icon={icon} className="text-2xl" />
@@ -715,5 +707,3 @@ const StatCard = ({ icon, value, label, bg, color }: StatCardProps) => (
     </div>
   </div>
 );
-
-export default Lessons;

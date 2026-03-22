@@ -6,13 +6,22 @@ import { Default_Error_Message } from "../../../constants/default_error";
 import type { RootState } from "../../store";
 import type {
   iCreatedChapterPayload,
-  iCreatedChapterResponse,
   iCreatedBulkChapterPayload,
-  iCreatedBulkChapterResponse,
+  iCreatedChapterResponse,
 } from "../../../types/chapter";
 
-const initialState = {
-  data: {} as any, 
+interface ChapterState {
+  data: {
+    isSuccess?: boolean;
+    message?: string;
+    [key: string]: any;
+  };
+  loading: boolean;
+  error: string;
+}
+
+const initialState: ChapterState = {
+  data: {},
   loading: false,
   error: "",
 };
@@ -31,19 +40,19 @@ export const createChapterFn = createAsyncThunk(
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
         return rejectWithValue(
-          error.response?.data.message || Default_Error_Message
+          error.response?.data.message || Default_Error_Message,
         );
       }
       return rejectWithValue(Default_Error_Message);
     }
-  }
+  },
 );
 
 export const createBulkChaptersFn = createAsyncThunk(
@@ -53,26 +62,26 @@ export const createBulkChaptersFn = createAsyncThunk(
       const appState = getState() as RootState;
       const token = appState.loginSlice.data.token;
       const response = await axios.post(
-          `${BASE_API_URL}/courses/chapters/bulk-create`,
-          data,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
+        `${BASE_API_URL}/courses/chapters/bulk-create`,
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
       );
 
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
         return rejectWithValue(
-            error.response?.data.message || Default_Error_Message
+          error.response?.data.message || Default_Error_Message,
         );
       }
       return rejectWithValue(Default_Error_Message);
     }
-  }
+  },
 );
 
 export const createChapterSlice = createSlice({
