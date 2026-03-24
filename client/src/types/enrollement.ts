@@ -28,6 +28,8 @@ export interface Course {
   description: string;
   is_published: boolean;
   price: number;
+  price_dlr: number;
+  price_shl: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -81,6 +83,8 @@ export interface Course {
   description: string;
   is_published: boolean;
   price: number;
+  price_dlr: number;
+  price_shl: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -150,6 +154,8 @@ export interface Course {
   description: string;
   is_published: boolean;
   price: number;
+  price_dlr: number;
+  price_shl: string;
   created_at: Date;
   updated_at: Date;
 }

@@ -16,9 +16,6 @@ const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
 
   const loginState = useSelector((state: RootState) => state.loginSlice);
   const user = loginState.data?.user;
-
-  const currency = useSelector((state: RootState) => state.cart.currency);
-
   const isEnrolled = user
     ? course.enrollments?.some(
         (enrl) =>
@@ -85,7 +82,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
         </p>
 
         <div className="mt-auto text-right text-lg font-semibold text-green-600 dark:text-green-400">
-          {currency === "USD" ? `$${Number(course.price_dlr || 0).toFixed(2)}` : `${course.price_shl} SLSH`}
+          ${Number(course.price_dlr || 0).toFixed(2)}
         </div>
 
         {isEnrolled ? (

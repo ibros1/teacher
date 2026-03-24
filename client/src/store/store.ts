@@ -33,6 +33,7 @@ import { WhoAmiSlice } from "./slices/auth/user/getMe";
 import { createPaymentSlice } from "./slices/payments/createPayment";
 import { listPaymentsSlice } from "./slices/payments/listPayments";
 import { updatePaymentSlice } from "./slices/payments/updatePayment";
+import { getAdminStatsSlice } from "./slices/stats/getStats";
 import { createLessonProgressSlice } from "./lessonProggress/makeProgress";
 import { getLessonProgressSlice } from "./lessonProggress/getLessonProggress";
 import { getCompletedLessonsSlice } from "./lessonProggress/getCompletedProggress";
@@ -89,6 +90,7 @@ export const store = configureStore({
     createPaymentSlice: createPaymentSlice.reducer,
     listPaymentsSlice: listPaymentsSlice.reducer,
     updatePaymentSlice: updatePaymentSlice.reducer,
+    getAdminStatsSlice: getAdminStatsSlice.reducer,
   },
 
   devTools: true,

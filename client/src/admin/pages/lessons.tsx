@@ -9,6 +9,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Calendar, Clock, Eye, Pencil, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { getAdminStatsFn } from "../../store/slices/stats/getStats";
 
 import { Button } from "../../components/ui/button";
 import { listChaptersFn } from "../../store/slices/chapters/listChapters";
@@ -53,8 +54,8 @@ import { Textarea } from "../../components/ui/textarea";
 import type { Lesson } from "../../types/lesson";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import type { SourceInfo } from "plyr";
-import Plyr from "plyr-react";
+import { Player, Video, DefaultUi } from "@vime/react";
+import "@vime/core/themes/default.css";
 import { BASE_API_URL } from "../../constants/base_url";
 import AdminDataTable from "../components/AdminDataTable";
 import AdminPageHeader from "../components/AdminPageHeader";
@@ -71,6 +72,10 @@ export const Lessons = () => {
   const listLessonState = useSelector(
     (state: RootState) => state.listLessonSlice,
   );
+  const adminStatsState = useSelector(
+    (state: RootState) => state.getAdminStatsSlice,
+  );
+  const statsData = adminStatsState.data;
   const totalPages = listLessonState.data?.totalPages || 1;
 
   const coursesState = useSelector(
@@ -99,6 +104,7 @@ export const Lessons = () => {
 
   useEffect(() => {
     dispatch(listLessonsFn({ page, perPage }));
+    dispatch(getAdminStatsFn());
   }, [dispatch, page, perPage]);
 
   const lessons = listLessonState.data?.lessons
@@ -117,10 +123,10 @@ export const Lessons = () => {
     );
 
   const stats = {
-    totalLessons: listLessonState.data?.total || 0,
-    completed: 18,
-    notCompleted: 14,
-    totalChapters: 7,
+    totalLessons: statsData.totalLessons,
+    completed: statsData.totalChapters, // Using totalChapters as placeholder for now or maybe another metric
+    notCompleted: statsData.totalStudents, // Using totalStudents as placeholder for another card
+    totalChapters: statsData.totalChapters,
   };
 
   // ───────────── UPDATE LESSON ─────────────
@@ -132,6 +138,7 @@ export const Lessons = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [isPreview, setIsPreview] = useState(false);
 
   const updateLessonHandler = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,6 +151,7 @@ export const Lessons = () => {
         title,
         content,
         video_url: videoUrl,
+        is_preview: isPreview,
       }),
     );
   };
@@ -197,8 +205,6 @@ export const Lessons = () => {
   // ───────────── VIDEO MODAL ─────────────
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
-  // Plyr source configuration
-
   const formatVideoUrl = (url: string) => {
     if (!url) return "";
 
@@ -226,39 +232,8 @@ export const Lessons = () => {
     }
     return "";
   };
-  const source: SourceInfo = useMemo(() => {
-    const url = selectedLesson?.video_url || "";
-    const youtubeId = getYouTubeId(url);
-
-    if (youtubeId) {
-      return {
-        type: "video",
-        sources: [
-          {
-            src: youtubeId,
-            provider: "youtube",
-          },
-        ],
-        youtube: {
-          noCookie: true,
-          rel: 0,
-          showinfo: 0,
-          iv_load_policy: 3,
-          modestbranding: 1,
-        },
-      };
-    } else {
-      return {
-        type: "video",
-        sources: [
-          {
-            src: formatVideoUrl(url),
-            type: "video/mp4",
-          },
-        ],
-      };
-    }
-  }, [selectedLesson?.video_url]);
+  const modalVideoUrl = selectedLesson?.video_url || "";
+  const youtubeId = useMemo(() => getYouTubeId(modalVideoUrl), [modalVideoUrl]);
 
   const openVideoModal = (lesson: Lesson) => {
     setSelectedLesson(lesson);
@@ -331,6 +306,18 @@ export const Lessons = () => {
       ),
     },
     {
+      accessorKey: "is_preview",
+      header: "Preview",
+      cell: (info) => (
+        <Badge
+          variant={info.getValue() ? "default" : "outline"}
+          className={info.getValue() ? "bg-green-600 hover:bg-green-700" : ""}
+        >
+          {info.getValue() ? "Yes" : "No"}
+        </Badge>
+      ),
+    },
+    {
       accessorKey: "created_at",
       header: "Created",
       cell: (info) =>
@@ -371,6 +358,7 @@ export const Lessons = () => {
               setTitle(lesson.title);
               setContent(lesson.content);
               setVideoUrl(lesson.video_url);
+              setIsPreview(lesson.is_preview || false);
               setIsEditDialogOpen(true);
             }}
           >
@@ -466,7 +454,24 @@ export const Lessons = () => {
         <DialogContent className="w-full max-w-7xl max-h-[90vh] p-0 rounded-xl bg-black text-white border-0 overflow-hidden flex flex-col">
           {/* Video Container */}
           <div className="w-full aspect-video">
-            <Plyr source={source} />
+            {isVideoModalOpen && (
+              youtubeId ? (
+                <iframe
+                  src={`https://www.youtube.com/embed/${youtubeId}?rel=0&showinfo=0&modestbranding=1&controls=1&autoplay=1`}
+                  className="w-full h-full"
+                  allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  title="Lesson video"
+                />
+              ) : (
+                <Player theme="dark" style={{ width: "100%", height: "100%" }}>
+                  <Video crossOrigin="">
+                    <source data-src={formatVideoUrl(modalVideoUrl)} type="video/mp4" />
+                  </Video>
+                  <DefaultUi />
+                </Player>
+              )
+            )}
           </div>
 
           {/* Lesson Details */}
@@ -639,6 +644,19 @@ export const Lessons = () => {
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
                 />
+              </div>
+
+              <div className="flex items-center space-x-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="isPreview"
+                  checked={isPreview}
+                  onChange={(e) => setIsPreview(e.target.checked)}
+                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                />
+                <Label htmlFor="isPreview" className="text-sm font-medium">
+                  Allow lesson preview (Free for non-enrolled users)
+                </Label>
               </div>
             </div>
 

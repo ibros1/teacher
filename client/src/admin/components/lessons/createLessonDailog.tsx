@@ -51,11 +51,12 @@ interface LessonFormValues {
   title: string;
   content: string;
   videoUrl: string;
+  is_preview: boolean;
 }
 
 const CreateLessonDialog = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const dispatch = useDispatch<AppDispatch>();
 
@@ -81,6 +82,7 @@ const CreateLessonDialog = () => {
       title: "",
       content: "",
       videoUrl: "",
+      is_preview: false,
     },
   });
 
@@ -98,50 +100,37 @@ const CreateLessonDialog = () => {
     }
   }, [createLessonState, dispatch, form]);
 
+  // AUTO-CREATE: When upload finishes, automatically submit if all fields are filled
+  useEffect(() => {
+    if (uploadProgress === null && selectedFile) {
+      const values = form.getValues();
+      if (values.videoUrl && values.title.trim() && values.content.trim() && values.chapter && selectedCourse) {
+        const timer = setTimeout(() => {
+          toast.info("Video uploaded! Auto-saving lesson...");
+          form.handleSubmit(onSubmit)();
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [uploadProgress, selectedFile]);
+
   const onSubmit = async (values: LessonFormValues) => {
     if (!selectedCourse) {
       toast.error("Please select a course");
       return;
     }
-    
-    let finalVideoUrl = values.videoUrl;
 
-    if (selectedFile) {
-      const formData = new FormData();
-      formData.append("video", selectedFile);
-
-      setIsUploading(true);
-      const toastId = toast.loading("Uploading video to Cloudflare R2...");
-      try {
-        const res = await axios.post(
-          `${BASE_API_URL}/courses/lessons/upload-video`,
-          formData,
-          {
-            headers: { "Content-Type": "multipart/form-data" },
-          },
-        );
-        if (res.data?.isSuccess) {
-          finalVideoUrl = res.data.videoUrl;
-          toast.success("Video uploaded successfully!", { id: toastId });
-        } else {
-          toast.error("Upload failed: " + res.data?.message, { id: toastId });
-          setIsUploading(false);
-          return; // Stop execution if upload fails
-        }
-      } catch (err: any) {
-        toast.error(
-          "Upload failed: " + (err.response?.data?.message || err.message),
-          { id: toastId },
-        );
-        setIsUploading(false);
-        return; // Stop execution if upload fails
-      }
-      setIsUploading(false);
-    } else if (!finalVideoUrl) {
-      toast.error("Please attach a video file first.");
+    if (uploadProgress !== null) {
+      toast.error("Please wait for the video to finish uploading.");
       return;
     }
 
+    if (!values.videoUrl && !selectedFile) {
+        toast.error("Please attach a video file.");
+        return;
+    }
+
+    // Final database payload
     dispatch(
       createlessonFn({
         userId: loginState?.data?.user?.id,
@@ -149,20 +138,51 @@ const CreateLessonDialog = () => {
         chapterId: values.chapter,
         title: values.title,
         content: values.content,
-        video_url: finalVideoUrl,
+        video_url: values.videoUrl,
         isCompleted: false,
+        is_preview: values.is_preview,
       }),
     );
   };
 
-  const handleFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       // Clear any previous URL since we have a new file
       form.setValue("videoUrl", "", { shouldValidate: true });
+
+      setUploadProgress(0);
+      const toastId = toast.loading("Uploading video to Cloudflare R2...");
+      try {
+        const formData = new FormData();
+        formData.append("video", file);
+
+        const { data: uploadResult } = await axios.post(
+          `${BASE_API_URL}/courses/lessons/upload-video`,
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+            onUploadProgress: (progressEvent) => {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+              setUploadProgress(percentCompleted);
+            },
+          }
+        );
+
+        if (!uploadResult.isSuccess) throw new Error(uploadResult.message || "Upload failed");
+
+        form.setValue("videoUrl", uploadResult.videoUrl, { shouldValidate: true });
+        toast.success("Video uploaded successfully!", { id: toastId });
+      } catch (err: any) {
+        toast.error("Upload failed: " + (err.response?.data?.message || err.message), { id: toastId });
+        console.error(err);
+      } finally {
+        setUploadProgress(null);
+      }
     } else {
       setSelectedFile(null);
+      form.setValue("videoUrl", "");
     }
   };
 
@@ -305,7 +325,7 @@ const CreateLessonDialog = () => {
                     type="file"
                     accept="video/*"
                     onChange={handleFileSelection}
-                    disabled={isUploading}
+                    disabled={uploadProgress !== null}
                     className="cursor-pointer file:cursor-pointer file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-4 file:py-1 hover:file:bg-primary/90"
                   />
                   {(form.watch("videoUrl") || selectedFile) && (
@@ -313,13 +333,45 @@ const CreateLessonDialog = () => {
                       ✓ Video attached and ready to upload
                     </p>
                   )}
-                  {isUploading && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                      <Spinner /> Uploading to R2 Storage...
+                  {uploadProgress !== null && (
+                    <div className="space-y-1 mt-1">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Spinner /> Uploading: {uploadProgress}%
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
+                        <div 
+                          className="bg-green-600 h-1.5 rounded-full transition-all duration-300" 
+                          style={{ width: `${uploadProgress}%` }}
+                        ></div>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* is_preview */}
+              <FormField
+                control={form.control}
+                name="is_preview"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        checked={field.value}
+                        onChange={field.onChange}
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 mt-1"
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Allow preview</FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Make this lesson available for free preview to non-enrolled users.
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter>
                 <Button
@@ -333,12 +385,12 @@ const CreateLessonDialog = () => {
                   type="submit"
                   disabled={
                     createLessonState.loading ||
-                    isUploading ||
+                    uploadProgress !== null ||
                     (!form.watch("videoUrl") && !selectedFile)
                   }
                   className="disabled:bg-gray-700 bg-slate-900 hover:bg-slate-700 disabled:cursor-not-allowed"
                 >
-                  {createLessonState.loading || isUploading ? (
+                  {createLessonState.loading || uploadProgress !== null ? (
                     <Spinner />
                   ) : (
                     "Upload & Save"

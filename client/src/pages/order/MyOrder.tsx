@@ -14,6 +14,7 @@ import "jspdf-autotable";
 import { useDispatch, useSelector } from "react-redux";
 import { type AppDispatch, type RootState } from "../../store/store";
 import { listEnrollementsFn } from "../../store/slices/enrollments/listEnrollements";
+import { setCurrency } from "../../store/slices/cart/cart";
 import MyOrderSkeleton from "../../components/ui/orderSkeleton";
 import { Button } from "../../components/ui/button";
 import { generateInvoicePDF } from "./pdfGenerator";
@@ -62,6 +63,7 @@ const MyOrder = () => {
     (state: RootState) => state.listEnrollementsSlice,
   );
   const loginState = useSelector((state: RootState) => state.loginSlice);
+  const currency = useSelector((state: RootState) => state.cart.currency);
   const userId = loginState.data?.user?.id;
 
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -112,6 +114,28 @@ const MyOrder = () => {
             <Filter className="w-4 h-4" />
             Filters
           </button>
+          <div className="flex bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm">
+            <button
+              onClick={() => dispatch(setCurrency("SLSH"))}
+              className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                currency === "SLSH"
+                  ? "bg-green-600 text-white shadow-sm"
+                  : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              SLSH
+            </button>
+            <button
+              onClick={() => dispatch(setCurrency("USD"))}
+              className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                currency === "USD"
+                  ? "bg-green-600 text-white shadow-sm"
+                  : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              USD
+            </button>
+          </div>
         </div>
       </div>
 
@@ -200,7 +224,9 @@ const MyOrder = () => {
 
               <div className="flex justify-between items-center">
                 <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                  ${order.course?.price?.toFixed(2) ?? "—"}
+                  {currency === "USD" 
+                    ? `$${Number(order.course?.price_dlr ?? 0).toFixed(2)}` 
+                    : `${order.course?.price_shl ?? "—"} SLSH`}
                 </div>
                 {getStatusBadge(order.status)}
               </div>

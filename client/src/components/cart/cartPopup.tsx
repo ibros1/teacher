@@ -8,7 +8,7 @@ import { removeFromCart } from "../../store/slices/cart/cart";
 
 const CartPopup = () => {
   const cartItems = useSelector((state: RootState) => state.cart.items);
-  const currency = useSelector((state: RootState) => state.cart.currency);
+
   const dispatch = useDispatch();
 
   // Save cartItems to localStorage on every change
@@ -21,12 +21,7 @@ const CartPopup = () => {
   };
 
   const totalPrice = cartItems.reduce((acc, item) => {
-    if (currency === "USD") {
-      return acc + (item.price_dlr || 0) * (item.quantity || 1);
-    } else {
-      const priceShl = parseFloat((item.price_shl || "0").replace(/,/g, ""));
-      return acc + priceShl * (item.quantity || 1);
-    }
+    return acc + (item.price_dlr || 0) * (item.quantity || 1);
   }, 0);
 
   return (
@@ -74,7 +69,7 @@ const CartPopup = () => {
                       Qty: {item.quantity}
                     </p>
                     <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
-                      {currency === "USD" ? `$${Number(item.price_dlr || 0).toFixed(2)}` : `${item.price_shl} SLSH`}
+                      ${Number(item.price_dlr || 0).toFixed(2)}
                     </p>
                   </div>
                   <button
@@ -94,7 +89,7 @@ const CartPopup = () => {
                 Total:
               </span>
               <span className="font-bold text-xl text-green-600 dark:text-green-400">
-                {currency === "USD" ? `$${totalPrice.toFixed(2)}` : `${totalPrice.toLocaleString()} SLSH`}
+                ${totalPrice.toFixed(2)}
               </span>
             </div>
 

@@ -1,5 +1,6 @@
 import {
   Currency,
+  EnrollmentStatus,
   PaymentMethod,
   PaymentStatus,
   PrismaClient,
@@ -63,7 +64,7 @@ export const createPayment = async (req: Request, res: Response) => {
         userId: data.userId,
         courseId: data.courseId,
         status: {
-          in: ["COMPLETED", "IN_PROGRESS", "PENDING", "PROCESSING"] as any[]
+          in: [EnrollmentStatus.IN_PROGRESS, EnrollmentStatus.COMPLETED]
         }
       }
     });
@@ -223,6 +224,10 @@ export const getAllPayments = async (req: Request, res: Response) => {
 
     const [payments, total] = await Promise.all([
       prisma.payment.findMany({
+        where: {
+          status: PaymentStatus.PAID,
+          isEnrolled: true,
+        },
         skip: (page - 1) * perPage,
         take: perPage,
         include: {
@@ -237,7 +242,12 @@ export const getAllPayments = async (req: Request, res: Response) => {
           course: true,
         },
       }),
-      prisma.payment.count(),
+      prisma.payment.count({
+        where: {
+          status: PaymentStatus.PAID,
+          isEnrolled: true,
+        },
+      }),
     ]);
     if (!payments) {
       res.status(400).json({

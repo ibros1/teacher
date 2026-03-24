@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const chaptersController_1 = require("../controllers/chaptersController");
+const router = (0, express_1.Router)();
+router.post("/create", chaptersController_1.createChapter);
+router.post("/bulk-create", chaptersController_1.createBulkChapters);
+router.put("/update", chaptersController_1.updateChapter);
+router.get("/list", chaptersController_1.listAllChapter);
+router.get("/list/:chapterId", chaptersController_1.getOneChapter);
+router.delete("/list/delete/:chapterId", chaptersController_1.deleteChapter);
+exports.default = router;

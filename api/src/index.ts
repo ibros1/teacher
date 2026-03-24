@@ -7,6 +7,7 @@ import lessonProgress from "./routes/lessonProggress";
 import enrollementRoute from "./routes/enrollmentRouter";
 import paymentRoute from "./routes/paymentRoute";
 import chapterRoute from "./routes/chapterRoute";
+import statsRoute from "./routes/statsRoute";
 import cors from "cors";
 import path from "path";
 import multer from "multer";
@@ -36,6 +37,7 @@ app.use("/courses/chapters", chapterRoute);
 app.use("/courses/lessons", lessonRoute);
 app.use("/enrollement", enrollementRoute);
 app.use("/payments", paymentRoute);
+app.use("/stats", statsRoute);
 app.use("/lessons/progress", lessonProgress);
 
 app.use(multerErrorHandler);

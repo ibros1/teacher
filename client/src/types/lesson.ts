@@ -17,6 +17,7 @@ export interface Lesson {
   content: string;
   video_url: string;
   is_completed: boolean;
+  is_preview: boolean;
   created_at: Date;
   updated_at: Date;
   chapters: Chapters;
@@ -57,6 +58,7 @@ export interface iCreatedLessonPayload {
   content: string;
   video_url: string;
   isCompleted: boolean;
+  is_preview?: boolean;
 }
 
 export interface iBulkCreatedLessonPayload {
@@ -67,6 +69,7 @@ export interface iBulkCreatedLessonPayload {
     title: string;
     content: string;
     video_url: string;
+    is_preview?: boolean;
   }[];
 }
 
@@ -91,6 +94,7 @@ export interface CreatedLesson {
   content: string;
   video_url: string;
   is_completed: boolean;
+  is_preview: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -111,6 +115,7 @@ export interface Lesson {
   content: string;
   video_url: string;
   is_completed: boolean;
+  is_preview: boolean;
   created_at: Date;
   updated_at: Date;
   chapters: Chapters;
@@ -152,6 +157,7 @@ export interface iUpdatedLessonPayload {
   isCompleted?: boolean;
   content: string;
   video_url: string;
+  is_preview?: boolean;
 }
 
 // delete
@@ -170,6 +176,7 @@ export interface DeletingLesson {
   content: string;
   video_url: string;
   is_completed: boolean;
+  is_preview: boolean;
   created_at: Date;
   updated_at: Date;
 }

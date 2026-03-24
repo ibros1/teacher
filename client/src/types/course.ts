@@ -91,6 +91,7 @@ export interface Lesson {
   content: string;
   video_url: string;
   is_completed: boolean;
+  is_preview: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -216,6 +217,7 @@ export interface Lesson {
   content: string;
   video_url: string;
   is_completed: boolean;
+  is_preview: boolean;
   created_at: Date;
   updated_at: Date;
 }

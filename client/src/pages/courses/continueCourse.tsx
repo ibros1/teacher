@@ -251,11 +251,7 @@ const ContinueCourse = () => {
 
   // Early returns
   if (loading || userState.loading)
-    return (
-      <div className="p-12 text-center">
-        <ContinueCourseSkeleton />
-      </div>
-    );
+    return <ContinueCourseSkeleton />;
   if (!course)
     return (
       <div className="p-12 text-center text-green-600">

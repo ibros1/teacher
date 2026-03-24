@@ -1,0 +1,22 @@
+[
+  {
+    "AllowedOrigins": [
+      "http://localhost:5173"
+    ],
+    "AllowedMethods": [
+      "GET",
+      "PUT",
+      "POST",
+      "DELETE",
+      "HEAD"
+    ],
+    "AllowedHeaders": [
+      "*"
+    ],
+    "ExposeHeaders": [
+      "ETag",
+      "Content-Type"
+    ],
+    "MaxAgeSeconds": 3600
+  }
+]

@@ -57,7 +57,7 @@ export const createEnrollement = async (req: Request, res: Response) => {
         userId: data.userId,
         courseId: data.courseId,
         status: {
-          in: ["COMPLETED", "IN_PROGRESS", "PENDING", "PROCESSING"] as any[]
+          in: [EnrollmentStatus.IN_PROGRESS, EnrollmentStatus.COMPLETED]
         }
       }
     });

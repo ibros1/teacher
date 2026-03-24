@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
 
 import { getOneCourseFn } from "../../store/slices/courses/getOneCourse";
 
@@ -17,12 +19,42 @@ import {
   Play,
   ArrowLeft,
   Check,
-  Video,
+  Video as VideoIcon,
 } from "lucide-react";
 
 import EnrolleCourseDetail from "./enrollCourseDetail";
 import { listEnrollementsFn } from "../../store/slices/enrollments/listEnrollements";
 import CourseDetailPageSkeleton from "../../components/ui/courseDetail";
+import { Player, Video, DefaultUi } from "@vime/react";
+import "@vime/core/themes/default.css";
+import {
+  Dialog,
+  DialogContent,
+} from "../../components/ui/dialog";
+import { BASE_API_URL } from "../../constants/base_url";
+
+const getYouTubeId = (url: string) => {
+  if (!url) return null;
+  const match = url.match(
+    /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  );
+  return match ? match[1] : null;
+};
+
+const formatVideoUrl = (url: string) => {
+  if (!url) return "";
+  try {
+    const urlObj = new URL(url);
+    urlObj.pathname = urlObj.pathname
+      .split("/")
+      .map((segment) => encodeURIComponent(decodeURIComponent(segment)))
+      .join("/");
+    return urlObj.toString();
+  } catch {
+    const encodedPath = encodeURIComponent(url.trim()).replace(/%2F/g, "/");
+    return url.startsWith("http") ? url : `${BASE_API_URL}/${encodedPath}`;
+  }
+};
 
 const CourseDetailPage = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -46,11 +78,16 @@ const CourseDetailPage = () => {
     (state: RootState) => state.listEnrollementsSlice.data?.enrollemnets
   );
 
-  const currency = useSelector((state: RootState) => state.cart.currency);
+
 
   const [expanded, setExpanded] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("content");
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [selectedPreviewVideo, setSelectedPreviewVideo] = useState<{
+    url: string;
+    title: string;
+  } | null>(null);
 
   useEffect(() => {
     if (courseId) dispatch(getOneCourseFn(+courseId));
@@ -109,6 +146,7 @@ const CourseDetailPage = () => {
   const isCompleted = userEnrollment?.is_enrolled === true && userEnrollment?.status?.toUpperCase() === "COMPLETED";
   const isPending = userEnrollment && ["PENDING", "IN_PROGRESS", "PROCESSING"].includes(userEnrollment.status?.toUpperCase() || "");
   const isFailed = userEnrollment && ["FAILED", "CANCELLED"].includes(userEnrollment.status?.toUpperCase() || "");
+  const isEnrolled = userEnrollment?.is_enrolled === true;
 
   const firstLesson = course.lesson.map((lesson) => lesson.id[0]);
 
@@ -194,20 +232,35 @@ const CourseDetailPage = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="flex flex-wrap gap-3"
+                className="flex flex-wrap gap-3 mb-8"
               >
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                   <User size={18} />
                   <span>{course.users.full_name}</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                   <Clock size={18} />
                   <span>12.5 hours</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                   <BookOpen size={18} />
                   <span>{course.lesson.length} lessons</span>
                 </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="flex flex-wrap gap-4"
+              >
+                <button
+                  onClick={() => setIsPreviewOpen(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-white text-green-600 font-bold rounded-xl shadow-lg hover:bg-gray-50 transition-all transform hover:scale-105 active:scale-95"
+                >
+                  <Play size={20} fill="currentColor" />
+                  Watch Preview
+                </button>
               </motion.div>
             </div>
 
@@ -218,22 +271,31 @@ const CourseDetailPage = () => {
               className="w-full md:w-auto"
             >
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden w-full md:w-80">
-                <div className=" h-[150px]">
+                <div 
+                  className="relative h-[180px] cursor-pointer group"
+                  onClick={() => setIsPreviewOpen(true)}
+                >
                   <img
                     src={`${course.course_img}`}
                     alt=""
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
+                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                      <Play className="text-green-600 ml-1" size={24} fill="currentColor" />
+                    </div>
+                  </div>
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-white text-xs font-bold bg-black/60 px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                    Watch Preview
+                  </div>
                 </div>
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {currency === "USD" ? `$${Number(course.price_dlr || 0).toFixed(2)}` : `${course.price_shl} SLSH`}
+                      ${Number(course.price_dlr || 0).toFixed(2)}
                     </span>
                     <span className="text-sm text-gray-500 dark:text-gray-400 line-through">
-                      {currency === "USD" 
-                        ? `$${(Number(course.price_dlr || 0) * 1.2).toFixed(2)}`
-                        : `${(parseFloat(course.price_shl.replace(/,/g, '')) * 1.2).toLocaleString()} SLSH`}
+                      ${(Number(course.price_dlr || 0) * 1.2).toFixed(2)}
                     </span>
                   </div>
 
@@ -472,34 +534,56 @@ const CourseDetailPage = () => {
                                     {lessons.map((lesson, i) => (
                                       <motion.li
                                         key={lesson.id}
-                                        className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 transition hover:bg-green-50 dark:hover:bg-green-900/20"
+                                        className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
+                                          !isEnrolled && lesson.is_preview
+                                            ? "bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-800 shadow-sm"
+                                            : "border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-none hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:border-gray-200 dark:hover:border-gray-700"
+                                        }`}
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
                                       >
                                         <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30">
-                                          <Video
+                                          <VideoIcon
                                             size={20}
                                             className="text-green-600 dark:text-green-400"
                                           />
                                         </div>
-                                        <div className="flex-1">
-                                          <p className="font-medium text-gray-900 dark:text-white">
-                                            {lesson.title}
-                                          </p>
-                                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <p className="font-bold text-gray-900 dark:text-white truncate">
+                                              {lesson.title}
+                                            </p>
+                                            {!isEnrolled && lesson.is_preview && (
+                                              <Badge className="bg-green-600 hover:bg-green-700 text-white text-[10px] h-5 px-2 uppercase font-bold tracking-tighter">
+                                                Free Preview
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
+                                            <Clock size={12} />
                                             10:48
                                           </p>
                                         </div>
                                         <div>
-                                          {i % 3 === 0 ? (
+                                          {isEnrolled || lesson.is_preview ? (
                                             <Play
                                               size={20}
-                                              className="text-green-600 dark:text-green-400"
+                                              className="text-green-600 dark:text-green-400 cursor-pointer hover:scale-110 transition-transform"
+                                              onClick={(e) => {
+                                                if (!isEnrolled && lesson.is_preview) {
+                                                  e.stopPropagation();
+                                                  setSelectedPreviewVideo({
+                                                    url: lesson.video_url,
+                                                    title: lesson.title,
+                                                  });
+                                                  setIsPreviewOpen(true);
+                                                }
+                                              }}
                                             />
                                           ) : (
                                             <Lock
-                                              size={20}
+                                              size={18}
                                               className="text-gray-400"
                                             />
                                           )}
@@ -714,6 +798,144 @@ const CourseDetailPage = () => {
           </div>
         </div>
       </div>
+      <Dialog 
+        open={isPreviewOpen} 
+        onOpenChange={(open) => {
+          setIsPreviewOpen(open);
+          if (!open) setSelectedPreviewVideo(null);
+        }}
+      >
+        <DialogContent className="max-w-[70rem] w-[95vw] p-0 bg-white dark:bg-[#0f172a] overflow-hidden border-none shadow-2xl rounded-3xl ring-1 ring-black/5 dark:ring-white/10">
+          <div className="flex flex-col lg:flex-row h-full max-h-[85vh] lg:max-h-[90vh]">
+            {/* Main Video Area */}
+            <div className="flex-none lg:flex-1 bg-black flex flex-col relative group">
+              <div className="aspect-video w-full flex items-center justify-center">
+                {(selectedPreviewVideo?.url || course.preview_course_url) ? (
+                  getYouTubeId(selectedPreviewVideo?.url || course.preview_course_url) ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${getYouTubeId(
+                        selectedPreviewVideo?.url || course.preview_course_url
+                      )}?rel=0&showinfo=0&modestbranding=1&controls=1&autoplay=1`}
+                      className="w-full h-full"
+                      allowFullScreen
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      title="Video preview"
+                    />
+                  ) : (
+                    <Player controls theme="dark">
+                      <Video>
+                        <source
+                          data-src={formatVideoUrl(selectedPreviewVideo?.url || course.preview_course_url)}
+                          type="video/mp4"
+                        />
+                      </Video>
+                      <DefaultUi />
+                    </Player>
+                  )
+                ) : (
+                  <div className="flex items-center justify-center h-full text-white flex-col gap-4">
+                    <VideoIcon size={64} className="text-gray-600 animate-pulse" />
+                    <p className="text-lg font-medium text-gray-400">No preview video available</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Overlay for Title when hovering video */}
+              <div className="absolute top-0 left-0 right-0 p-6 bg-gradient-to-b from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                <h3 className="text-white font-bold text-xl">
+                   {selectedPreviewVideo ? selectedPreviewVideo.title : course.title}
+                </h3>
+              </div>
+            </div>
+
+            {/* Sidebar / Info Area */}
+            <div className="w-full lg:w-[320px] bg-white dark:bg-[#0f172a] border-l border-gray-100 dark:border-gray-800 flex flex-col">
+              <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
+                    <VideoIcon size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                      {selectedPreviewVideo ? "Lesson Preview" : "Course Preview"}
+                    </h4>
+                  </div>
+                </div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
+                  {selectedPreviewVideo ? selectedPreviewVideo.title : course.title}
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-3 italic">
+                  {selectedPreviewVideo ? "Watch this lesson for free to see if this course is right for you." : course.description}
+                </p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                <h5 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 px-2">Preview Sessions</h5>
+                <div className="space-y-2">
+                   {/* Course Overview Option */}
+                   <button 
+                    onClick={() => setSelectedPreviewVideo(null)}
+                    className={`w-full text-left p-3 rounded-xl transition-all border ${
+                      !selectedPreviewVideo 
+                        ? "bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/40" 
+                        : "bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    }`}
+                   >
+                      <div className="flex items-center gap-3">
+                         {selectedPreviewVideo ? <Play size={14} className="text-gray-400" /> : <Play size={14} className="text-green-600" />}
+                         <span className={`text-sm font-medium ${!selectedPreviewVideo ? "text-green-700 dark:text-green-400 font-bold" : "text-gray-600 dark:text-gray-400"}`}>
+                           Course Overview
+                         </span>
+                      </div>
+                   </button>
+                   
+                   {/* Map through other preview lessons */}
+                   {course.lesson.filter(l => l.is_preview).map((l) => (
+                      <button 
+                        key={l.id}
+                        onClick={() => setSelectedPreviewVideo({ url: l.video_url, title: l.title })}
+                        className={`w-full text-left p-3 rounded-xl transition-all border group ${
+                          selectedPreviewVideo?.url === l.video_url
+                            ? "bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/40" 
+                            : "bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        }`}
+                      >
+                         <div className="flex items-center gap-3">
+                            {selectedPreviewVideo?.url === l.video_url ? (
+                              <Play size={14} className="text-green-600" />
+                            ) : (
+                              <Play size={14} className="text-gray-400 group-hover:text-green-600" />
+                            )}
+                            <span className={`text-sm font-medium truncate ${
+                              selectedPreviewVideo?.url === l.video_url 
+                                ? "text-green-700 dark:text-green-400 font-bold" 
+                                : "text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white"
+                            }`}>
+                              {l.title}
+                            </span>
+                         </div>
+                      </button>
+                   ))}
+                </div>
+              </div>
+
+              {!isEnrolled && (
+                <div className="p-6 bg-gray-50/50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-800">
+                  <Button 
+                    onClick={() => navigate(`/courses/enrol/${course.id}`)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl py-6 font-bold text-lg shadow-lg shadow-green-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    Start Learning
+                  </Button>
+                  <p className="text-[10px] text-center text-gray-400 mt-3 font-medium uppercase tracking-tighter">
+                    Full Course Access • {course.lesson.length} Lessons
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

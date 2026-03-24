@@ -20,6 +20,15 @@ export const multerErrorHandler: ErrorRequestHandler = (
     return;
   }
 
+  // Handle 'Request aborted' errors
+  if (err.message === "Request aborted") {
+    res.status(400).json({
+      isSuccess: false,
+      message: "The upload was aborted by the client or connection was lost.",
+    });
+    return;
+  }
+
   if ((err as any).code === "LIMIT_FIELD_SIZE") {
     res.status(400).json({
       isSuccess: false,

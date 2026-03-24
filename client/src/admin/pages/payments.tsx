@@ -28,6 +28,7 @@ import type { AppDispatch, RootState } from "../../store/store";
 import clsx from "clsx";
 import type { Payment } from "../../types/payment";
 import { motion } from "framer-motion";
+import { getAdminStatsFn } from "../../store/slices/stats/getStats";
 import { PaymentsSkeleton } from "../../components/ui/paymentsSkeleton";
 import { Avatar } from "../../components/ui/avatar";
 
@@ -36,6 +37,10 @@ export const Payments = () => {
   const paymentsState = useSelector(
     (state: RootState) => state.listPaymentsSlice
   );
+  const adminStatsState = useSelector(
+    (state: RootState) => state.getAdminStatsSlice
+  );
+  const stats = adminStatsState.data;
 
   const [page, setPage] = useState(1);
   const perPage = 10;
@@ -56,13 +61,14 @@ export const Payments = () => {
 
   useEffect(() => {
     dispatch(listPaymentsFn({ page, perPage }));
+    dispatch(getAdminStatsFn());
   }, [dispatch, page, perPage]);
 
   // Static data for cards
   const statsData = [
     {
       title: "Total Revenue",
-      value: "$42,567",
+      value: `$${stats.totalRevenue.toLocaleString()}`,
       change: "+12.5%",
       isPositive: true,
       icon: <DollarSign className="w-6 h-6" />,
@@ -71,7 +77,7 @@ export const Payments = () => {
     },
     {
       title: "This Week",
-      value: "$8,342",
+      value: `$${stats.thisWeekRevenue.toLocaleString()}`,
       change: "+3.2%",
       isPositive: true,
       icon: <TrendingUp className="w-6 h-6" />,
@@ -80,7 +86,7 @@ export const Payments = () => {
     },
     {
       title: "Last Month",
-      value: "$32,890",
+      value: `$${stats.lastMonthRevenue.toLocaleString()}`,
       change: "-1.7%",
       isPositive: false,
       icon: <Calendar className="w-6 h-6 " />,
@@ -89,11 +95,11 @@ export const Payments = () => {
     },
     {
       title: "Payment Methods",
-      methods: [
-        { name: "Zaad", amount: "$18,450", percentage: "58%" },
-        { name: "eDahab", amount: "$12,340", percentage: "32%" },
-        { name: "Others", amount: "$4,890", percentage: "10%" },
-      ],
+      methods: stats.paymentMethods.map(m => ({
+        name: m.name,
+        amount: `$${m.amount.toLocaleString()}`,
+        percentage: m.percentage
+      })),
       icon: <CreditCard className="w-6 h-6" />,
       color: "bg-green-100 dark:bg-green-900/50",
       textColor: "text-green-600 dark:text-green-300",

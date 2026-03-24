@@ -24,6 +24,7 @@ import AdminStatsCards from "../components/AdminStatsCards";
 import AdminTableShell from "../components/AdminTableShell";
 import EditEnrolls from "../components/enrolls/EditEnrolls";
 import DeleteEnrolls from "../components/enrolls/deleteEnrolls";
+import CreateEnrollment from "../components/enrolls/CreateEnrollment";
 
 // ---------------- Types ----------------
 type StatusType = "ALL" | "COMPLETED" | "IN_PROGRESS" | "FAILED";
@@ -246,24 +247,28 @@ const Enrollments = () => {
       <AdminTableShell
         toolbar={
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <Input
-              placeholder="Search by name, email, or course"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-72"
-            />
+            <div className="flex flex-col sm:flex-row gap-4 flex-1">
+              <Input
+                placeholder="Search by name, email, or course"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full sm:w-72"
+              />
 
-            <div className="flex gap-2 flex-wrap">
-              {statusOptions.map((opt) => (
-                <Button
-                  key={opt.value}
-                  variant={statusFilter === opt.value ? "default" : "secondary"}
-                  onClick={() => setStatusFilter(opt.value)}
-                >
-                  {opt.label}
-                </Button>
-              ))}
+              <div className="flex gap-2 flex-wrap">
+                {statusOptions.map((opt) => (
+                  <Button
+                    key={opt.value}
+                    variant={statusFilter === opt.value ? "default" : "secondary"}
+                    onClick={() => setStatusFilter(opt.value)}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
             </div>
+            
+            <CreateEnrollment />
           </div>
         }
       >

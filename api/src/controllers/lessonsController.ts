@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import { iCreatedLesson, iUpdatedLesson, iBulkCreatedLesson } from "../../types/lesson.interface";
 import { AuthRequest } from "../../types/request";
-import { uploadToR2 } from "../helpers/uploadService";
+import { uploadToR2, getPresignedUploadUrl } from "../helpers/uploadService";
 
 const prisma = new PrismaClient();
 
@@ -89,6 +89,7 @@ export const createBulkLessons = async (req: Request, res: Response) => {
         title: lesson.title,
         content: lesson.content,
         video_url: lesson.video_url,
+        is_preview: lesson.is_preview || false,
         is_completed: false,
       })),
     });
@@ -200,6 +201,7 @@ export const createLessons = async (req: Request, res: Response) => {
         title: data.title,
         content: data.content,
         video_url: data.video_url,
+        is_preview: data.is_preview || false,
         is_completed: Boolean(data.isCompleted),
       },
 
@@ -322,6 +324,7 @@ export const updateLessons = async (req: AuthRequest, res: Response) => {
         title: data.title,
         content: data.content,
         is_completed: data.isCompleted,
+        is_preview: data.is_preview,
         video_url: data.video_url,
       },
       include: {
@@ -498,11 +501,49 @@ export const uploadLessonVideo = async (req: AuthRequest, res: Response) => {
       message: "Video uploaded successfully to Cloudflare R2.",
       videoUrl: publicUrl,
     });
-  } catch (error) {
-    console.error("Cloudflare R2 Upload Error:", error);
+  } catch (error: any) {
+    console.error("Cloudflare R2 Upload Error Details:", {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      metadata: error.$metadata,
+    });
     res.status(500).json({
       isSuccess: false,
       message: "Failed to upload video to the server",
+      error: error.message, // Providing more detail to the client (optional, but helpful for debugging)
+    });
+  }
+};
+
+export const getUploadPresignedUrl = async (req: AuthRequest, res: Response) => {
+  try {
+    const { fileName, contentType } = req.query;
+
+    if (!fileName || !contentType) {
+      res.status(400).json({
+        isSuccess: false,
+        message: "fileName and contentType are required query parameters.",
+      });
+      return;
+    }
+
+    const { uploadUrl, publicUrl } = await getPresignedUploadUrl(
+      fileName as string,
+      contentType as string
+    );
+
+    res.status(200).json({
+      isSuccess: true,
+      uploadUrl,
+      publicUrl,
+    });
+  } catch (error: any) {
+    console.error("Presigned URL Error:", error);
+    res.status(500).json({
+      isSuccess: false,
+      message: "Failed to generate presigned URL",
+      error: error.message,
     });
   }
 };

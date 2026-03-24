@@ -5,6 +5,7 @@ export interface iCreatedLesson {
   title: string;
   content: string;
   isCompleted?: boolean;
+  is_preview?: boolean;
   video_url: string;
 }
 
@@ -16,6 +17,7 @@ export interface iBulkCreatedLesson {
     title: string;
     content: string;
     video_url: string;
+    is_preview?: boolean;
   }[];
 }
 
@@ -27,5 +29,6 @@ export interface iUpdatedLesson {
   content: string;
   chapterId: string;
   isCompleted?: boolean;
+  is_preview?: boolean;
   video_url: string;
 }

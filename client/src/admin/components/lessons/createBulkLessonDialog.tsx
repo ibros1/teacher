@@ -50,13 +50,14 @@ interface BulkLessonFormValues {
     title: string;
     content: string;
     videoUrl: string;
+    is_preview: boolean;
   }[];
 }
 
 const CreateBulkLessonDialog = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [uploadingIndices, setUploadingIndices] = useState<number[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<Record<number, File>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, File>>({});
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
@@ -83,6 +84,7 @@ const CreateBulkLessonDialog = () => {
           title: "",
           content: "",
           videoUrl: "",
+          is_preview: false,
         },
       ],
     },
@@ -107,70 +109,42 @@ const CreateBulkLessonDialog = () => {
     }
   }, [createBulkLessonState, dispatch, form]);
 
+  // AUTO-CREATE: When all uploads finish, automatically submit
+  useEffect(() => {
+    // Only auto-submit when:
+    // 1. No uploads are in progress
+    // 2. We have selected files (meaning uploads happened)
+    // 3. All lessons have video URLs (all uploads succeeded)
+    // 4. A course and chapter are selected
+    const hasFiles = Object.keys(selectedFiles).length > 0;
+    const noUploadsInProgress = Object.keys(uploadProgress).length === 0;
+    
+    if (hasFiles && noUploadsInProgress && selectedCourse) {
+      const values = form.getValues();
+      const allLessonsReady = values.lessons.every(
+        (lesson) => lesson.videoUrl && lesson.title.trim() && lesson.content.trim()
+      );
+      
+      if (allLessonsReady && values.chapter) {
+        // Small delay to let the UI show success toasts first
+        const timer = setTimeout(() => {
+          toast.info("All videos uploaded! Auto-saving lessons...");
+          form.handleSubmit(onSubmit)();
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [uploadProgress, selectedFiles]);
+
   const onSubmit = async (values: BulkLessonFormValues) => {
     if (!selectedCourse) {
       toast.error("Please select a course");
       return;
     }
 
-    // Process valid lessons
-    const finalLessons = [];
-    const newUploadingIndices: number[] = [];
-
-    // Validation pass
-    for (let i = 0; i < values.lessons.length; i++) {
-        const lesson = values.lessons[i];
-        const hasFile = !!selectedFiles[i];
-        const hasUrl = !!lesson.videoUrl;
-
-        if (lesson.title.trim() && lesson.content.trim() && (hasFile || hasUrl)) {
-            finalLessons.push({ index: i, ...lesson });
-            if (hasFile) newUploadingIndices.push(i);
-        }
-    }
-
-    if (finalLessons.length === 0) {
-      toast.error("Please add at least one complete lesson (must have video)");
-      return;
-    }
-
-    setUploadingIndices(newUploadingIndices);
-    let uploadFailed = false;
-
-    // Upload files sequentially or in parallel
-    for (const validLesson of finalLessons) {
-      const idx = validLesson.index;
-      const fileContext = selectedFiles[idx];
-
-      if (fileContext) {
-        const formData = new FormData();
-        formData.append("video", fileContext);
-        const toastId = toast.loading(`Uploading video for Lesson ${idx + 1}...`);
-        
-        try {
-            const res = await axios.post(`${BASE_API_URL}/courses/lessons/upload-video`, formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-            if (res.data?.isSuccess) {
-                validLesson.videoUrl = res.data.videoUrl;
-                toast.success(`Lesson ${idx + 1} video uploaded successfully!`, { id: toastId });
-            } else {
-                toast.error(`Lesson ${idx + 1} upload failed: ` + res.data?.message, { id: toastId });
-                uploadFailed = true;
-                break;
-            }
-        } catch (err: any) {
-            toast.error(`Lesson ${idx + 1} upload failed: ` + (err.response?.data?.message || err.message), { id: toastId });
-            uploadFailed = true;
-            break;
-        }
-      }
-    }
-
-    setUploadingIndices([]);
-
-    if (uploadFailed) {
-        toast.error("Bulk creation aborted due to upload failure.");
+    const unUploaded = fields.some((field, index) => !form.getValues(`lessons.${index}.videoUrl`) && selectedFiles[field.id]);
+    if (unUploaded || Object.keys(uploadProgress).length > 0) {
+        toast.error("Please wait for all videos to finish uploading.");
         return;
     }
 
@@ -180,27 +154,67 @@ const CreateBulkLessonDialog = () => {
         userId: loginState?.data?.user?.id,
         courseId: +selectedCourse.id,
         chapterId: values.chapter,
-        lessons: finalLessons.map((lesson) => ({
+        lessons: values.lessons.map((lesson) => ({
           title: lesson.title,
           content: lesson.content,
           video_url: lesson.videoUrl,
+          is_preview: lesson.is_preview,
         })),
       })
     );
   };
 
-  const handleFileSelection = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelection = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    const fieldId = fields[index].id;
+
     if (file) {
-      setSelectedFiles((prev) => ({ ...prev, [index]: file }));
+      setSelectedFiles((prev) => ({ ...prev, [fieldId]: file }));
       // Clear URL since a new file was chosen locally
       form.setValue(`lessons.${index}.videoUrl`, "", { shouldValidate: true });
+      
+      // Start upload in background
+      setUploadProgress((prev) => ({ ...prev, [fieldId]: 0 }));
+      const toastId = toast.loading(`Uploading video for Lesson ${index + 1}...`);
+      
+      try {
+        const formData = new FormData();
+        formData.append("video", file);
+
+        const { data: uploadResult } = await axios.post(
+            `${BASE_API_URL}/courses/lessons/upload-video`,
+            formData,
+            {
+                headers: { "Content-Type": "multipart/form-data" },
+                onUploadProgress: (progressEvent) => {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+                    setUploadProgress((prev) => ({ ...prev, [fieldId]: percentCompleted }));
+                },
+            }
+        );
+
+        if (!uploadResult.isSuccess) throw new Error(uploadResult.message || "Upload failed");
+
+        form.setValue(`lessons.${index}.videoUrl`, uploadResult.videoUrl, { shouldValidate: true });
+        toast.success(`Lesson ${index + 1} video uploaded!`, { id: toastId });
+      } catch (err: any) {
+        toast.error(`Lesson ${index + 1} upload failed!`, { id: toastId });
+        console.error(err);
+      } finally {
+        setUploadProgress((prev) => {
+            const next = { ...prev };
+            delete next[fieldId];
+            return next;
+        });
+      }
+
     } else {
       setSelectedFiles((prev) => {
           const next = { ...prev };
-          delete next[index];
+          delete next[fieldId];
           return next;
       });
+      form.setValue(`lessons.${index}.videoUrl`, "");
     }
   };
 
@@ -209,6 +223,7 @@ const CreateBulkLessonDialog = () => {
       title: "",
       content: "",
       videoUrl: "",
+      is_preview: false,
     });
   };
 
@@ -361,6 +376,27 @@ const CreateBulkLessonDialog = () => {
                       )}
                     />
 
+                    {/* is_preview */}
+                    <FormField
+                      control={form.control}
+                      name={`lessons.${index}.is_preview`}
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={field.onChange}
+                              className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="text-sm">Allow preview</FormLabel>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+
                     {/* Content */}
                     <FormField
                       control={form.control}
@@ -389,15 +425,23 @@ const CreateBulkLessonDialog = () => {
                           type="file"
                           accept="video/*"
                           onChange={(e) => handleFileSelection(index, e)}
-                          disabled={uploadingIndices.includes(index) || createBulkLessonState.loading}
+                          disabled={!!uploadProgress[field.id] || createBulkLessonState.loading}
                           className="cursor-pointer file:cursor-pointer file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-4 file:py-1 hover:file:bg-primary/90"
                         />
-                        {(form.watch(`lessons.${index}.videoUrl`) || selectedFiles[index]) && (
+                        {(form.watch(`lessons.${index}.videoUrl`) || selectedFiles[field.id]) && (
                           <p className="text-xs text-green-500 font-medium">✓ Video attached and ready for upload</p>
                         )}
-                        {uploadingIndices.includes(index) && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                            <Spinner /> Uploading to R2 Storage...
+                        {uploadProgress[field.id] !== undefined && (
+                          <div className="space-y-1 mt-1">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Spinner /> Uploading to R2: {uploadProgress[field.id]}%
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
+                                <div 
+                                    className="bg-green-600 h-1.5 rounded-full transition-all duration-300" 
+                                    style={{ width: `${uploadProgress[field.id]}%` }}
+                                ></div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -416,10 +460,10 @@ const CreateBulkLessonDialog = () => {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={createBulkLessonState.loading || uploadingIndices.length > 0}
+                  disabled={createBulkLessonState.loading || Object.keys(uploadProgress).length > 0}
                   className="disabled:bg-gray-700 bg-green-600 hover:bg-green-700 disabled:cursor-not-allowed"
                 >
-                  {createBulkLessonState.loading || uploadingIndices.length > 0 ? (
+                  {createBulkLessonState.loading || Object.keys(uploadProgress).length > 0 ? (
                     <Spinner />
                   ) : (
                     `Upload & Create (${fields.length})`
